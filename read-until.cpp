@@ -69,25 +69,32 @@ awaitable<void> read_asio_awaitable(tcp::socket& s, std::string& buffer)
    }
 }
 
-int main()
+int main(int argc, char* argv[])
 {
    try {
+      std::string which;
+      if (argc != 1)
+         which = argv[1];
+
       io_context ioc;
       std::string buffer{"+PONG\r\n"};
 
-      tcp::resolver resv{ioc};
-      auto const res = resv.resolve("127.0.0.1", "12345");
-
       tcp::socket s{ioc};
-      s.connect(*std::begin(res));
-      //read_safe(s, buffer);
-      read_unsafe(s, buffer);
+      s.connect(tcp::endpoint{address::from_string("127.0.0.1"), 12345});
 
-      //co_spawn(ioc, read_asio_awaitable(s, buffer), asio::detached);
-      //asio::co_spawn(ioc, read_asio_awaitable(s, buffer), [](std::exception_ptr p) {
-      //   if (p)
-      //      std::rethrow_exception(p);
-      //});
+      if (which == "1") {
+         read_safe(s, buffer);
+      } else if (which == "2") {
+         read_unsafe(s, buffer);
+      } else if (which == "3") {
+         asio::co_spawn(ioc, read_asio_awaitable(s, buffer), [](std::exception_ptr p) {
+            if (p)
+               std::rethrow_exception(p);
+         });
+      } else {
+         throw std::runtime_error("No such option.");
+      }
+
       ioc.run();
    } catch (std::exception const& e) {
       std::cout << e.what() << std::endl;
